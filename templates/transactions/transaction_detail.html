@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}{{ txn.transaction_id }} – PayTrack{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ txn.transaction_id }}</h2>
+    <div>
+        {% if txn.status == 'PENDING' %}
+        <a href="{% url 'transaction_update' txn.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        {% endif %}
+        <a href="{% url 'transaction_delete' txn.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Delete</a>
+    </div>
+</div>
+
+<!-- Transaction details -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card stat-card p-4">
+            <h5 class="mb-3"><i class="bi bi-receipt"></i> Transaction Details</h5>
+            <table class="table table-borderless">
+                <tr><td class="text-muted w-25">Txn ID</td><td>{{ txn.transaction_id }}</td></tr>
+                <tr><td class="text-muted">Employee</td><td><a href="{% url 'employee_detail' txn.employee.pk %}">{{ txn.employee.full_name }}</a> ({{ txn.employee.employee_id }})</td></tr>
+                <tr><td class="text-muted">Type</td><td>{{ txn.get_transaction_type_display }}</td></tr>
+                <tr><td class="text-muted">Amount</td><td><strong>&#8377;{{ txn.amount|floatformat:2 }}</strong></td></tr>
+                <tr><td class="text-muted">Pay Period</td><td>{{ txn.pay_period }}</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card stat-card p-4">
+            <h5 class="mb-3"><i class="bi bi-credit-card"></i> Payment Info</h5>
+            <table class="table table-borderless">
+                <tr><td class="text-muted w-25">Method</td><td>{{ txn.get_payment_method_display }}</td></tr>
+                <tr><td class="text-muted">Status</td>
+                    <td>
+                        {% if txn.status == 'PAID' %}<span class="badge bg-success">Paid</span>
+                        {% elif txn.status == 'PENDING' %}<span class="badge bg-warning">Pending</span>
+                        {% elif txn.status == 'APPROVED' %}<span class="badge bg-info">Approved</span>
+                        {% elif txn.status == 'PROCESSING' %}<span class="badge bg-primary">Processing</span>
+                        {% elif txn.status == 'REJECTED' %}<span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr><td class="text-muted">Date</td><td>{{ txn.transaction_date|date:"M d, Y" }}</td></tr>
+                <tr><td class="text-muted">Processed By</td><td>{{ txn.processed_by|default:"—" }}</td></tr>
+                <tr><td class="text-muted">Description</td><td>{{ txn.description|default:"—" }}</td></tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Update status -->
+<div class="card stat-card p-4 mb-4" style="max-width: 600px;">
+    <h5 class="mb-3"><i class="bi bi-arrow-repeat"></i> Update Status</h5>
+    <form method="post">
+        {% csrf_token %}
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small">New Status</label>
+                {{ status_form.new_status }}
+            </div>
+            <div class="col-md-7">
+                <label class="form-label small">Remark (optional)</label>
+                {{ status_form.remark }}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-lg"></i> Update Status</button>
+    </form>
+</div>
+
+<!-- Audit trail -->
+<div class="card stat-card p-3">
+    <h5 class="mb-3"><i class="bi bi-clock-history"></i> Audit Trail</h5>
+    <table class="table table-sm mb-0">
+        <thead><tr><th>From</th><th>To</th><th>By</th><th>Remark</th><th>Timestamp</th></tr></thead>
+        <tbody>
+        {% for a in audits %}
+            <tr>
+                <td>{{ a.previous_status|default:"— (created)" }}</td>
+                <td>{{ a.new_status }}</td>
+                <td>{{ a.changed_by|default:"—" }}</td>
+                <td>{{ a.remark|default:"—" }}</td>
+                <td>{{ a.created_at|date:"M d, Y H:i" }}</td>
+            </tr>
+        {% empty %}
+            <tr><td colspan="5" class="text-center text-muted">No audit records</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

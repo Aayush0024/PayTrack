@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Transactions – PayTrack{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>Payment Transactions</h2>
+    <a href="{% url 'transaction_create' %}" class="btn btn-primary"><i class="bi bi-plus-lg"></i> New Transaction</a>
+</div>
+
+<!-- Filters -->
+<div class="card stat-card p-3 mb-3">
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small">Search Employee</label>
+            <input type="text" name="q" value="{{ search_q }}" class="form-control" placeholder="Name or Emp ID">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Status</label>
+            <select name="status" class="form-select">
+                <option value="">All</option>
+                {% for val, label in status_choices %}
+                    <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label small">Type</label>
+            <select name="type" class="form-select">
+                <option value="">All</option>
+                {% for val, label in type_choices %}
+                    <option value="{{ val }}" {% if selected_type == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <button type="submit" class="btn btn-outline-primary w-100"><i class="bi bi-funnel"></i> Filter</button>
+        </div>
+    </form>
+</div>
+
+<!-- Transactions table -->
+<div class="card stat-card p-3">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Txn ID</th><th>Employee</th><th>Department</th><th>Type</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th><th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in txns %}
+                <tr>
+                    <td><a href="{% url 'transaction_detail' t.pk %}" class="text-decoration-none">{{ t.transaction_id }}</a></td>
+                    <td>{{ t.employee.full_name }}</td>
+                    <td>{{ t.employee.department|default:"—" }}</td>
+                    <td>{{ t.get_transaction_type_display }}</td>
+                    <td>&#8377;{{ t.amount|floatformat:2 }}</td>
+                    <td>{{ t.get_payment_method_display }}</td>
+                    <td>
+                        {% if t.status == 'PAID' %}<span class="badge bg-success">Paid</span>
+                        {% elif t.status == 'PENDING' %}<span class="badge bg-warning">Pending</span>
+                        {% elif t.status == 'APPROVED' %}<span class="badge bg-info">Approved</span>
+                        {% elif t.status == 'PROCESSING' %}<span class="badge bg-primary">Processing</span>
+                        {% elif t.status == 'REJECTED' %}<span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.transaction_date|date:"M d, Y" }}</td>
+                    <td>
+                        <a href="{% url 'transaction_detail' t.pk %}" class="btn btn-sm btn-outline-info"><i class="bi bi-eye"></i></a>
+                        {% if t.status == 'PENDING' %}
+                        <a href="{% url 'transaction_update' t.pk %}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
+                        {% endif %}
+                        <a href="{% url 'transaction_delete' t.pk %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="9" class="text-center text-muted py-3">No transactions found. <a href="{% url 'transaction_create' %}">Create one</a></td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}{{ employee.full_name }} – PayTrack{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2>{{ employee.full_name }}</h2>
+    <div>
+        <a href="{% url 'employee_update' employee.pk %}" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        <a href="{% url 'employee_delete' employee.pk %}" class="btn btn-outline-danger"><i class="bi bi-trash"></i> Delete</a>
+    </div>
+</div>
+
+<!-- Employee info -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card stat-card p-4">
+            <h5 class="mb-3"><i class="bi bi-person"></i> Personal Info</h5>
+            <table class="table table-borderless">
+                <tr><td class="text-muted w-25">Emp ID</td><td>{{ employee.employee_id }}</td></tr>
+                <tr><td class="text-muted">Email</td><td>{{ employee.email }}</td></tr>
+                <tr><td class="text-muted">Phone</td><td>{{ employee.phone|default:"—" }}</td></tr>
+                <tr><td class="text-muted">Hire Date</td><td>{{ employee.hire_date|date:"M d, Y" }}</td></tr>
+            </table>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card stat-card p-4">
+            <h5 class="mb-3"><i class="bi bi-building"></i> Employment Info</h5>
+            <table class="table table-borderless">
+                <tr><td class="text-muted w-25">Department</td><td>{{ employee.department|default:"—" }}</td></tr>
+                <tr><td class="text-muted">Designation</td><td>{{ employee.designation|default:"—" }}</td></tr>
+                <tr><td class="text-muted">Base Salary</td><td>&#8377;{{ employee.base_salary|floatformat:2 }}</td></tr>
+                <tr><td class="text-muted">Status</td>
+                    <td>
+                        {% if employee.employment_status == 'ACTIVE' %}<span class="badge bg-success">Active</span>
+                        {% elif employee.employment_status == 'ON_LEAVE' %}<span class="badge bg-warning">On Leave</span>
+                        {% elif employee.employment_status == 'TERMINATED' %}<span class="badge bg-danger">Terminated</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Total paid summary -->
+<div class="alert alert-info">
+    <strong>Total Paid Amount:</strong> &#8377;{{ total_paid|floatformat:2 }}
+    ({{ txns.count }} transactions)
+</div>
+
+<!-- Transactions table -->
+<div class="card stat-card p-3">
+    <h5 class="mb-3">Payment Transactions</h5>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr><th>Txn ID</th><th>Type</th><th>Amount</th><th>Method</th><th>Status</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+            {% for t in txns %}
+                <tr>
+                    <td><a href="{% url 'transaction_detail' t.pk %}" class="text-decoration-none">{{ t.transaction_id }}</a></td>
+                    <td>{{ t.get_transaction_type_display }}</td>
+                    <td>&#8377;{{ t.amount|floatformat:2 }}</td>
+                    <td>{{ t.get_payment_method_display }}</td>
+                    <td>
+                        {% if t.status == 'PAID' %}<span class="badge bg-success">Paid</span>
+                        {% elif t.status == 'PENDING' %}<span class="badge bg-warning">Pending</span>
+                        {% elif t.status == 'APPROVED' %}<span class="badge bg-info">Approved</span>
+                        {% elif t.status == 'PROCESSING' %}<span class="badge bg-primary">Processing</span>
+                        {% elif t.status == 'REJECTED' %}<span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.transaction_date|date:"M d, Y" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted py-3">No transactions for this employee</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

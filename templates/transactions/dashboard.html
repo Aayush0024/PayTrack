@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+{% block title %}Dashboard – PayTrack{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Dashboard</h2>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-0">Total Employees</p>
+                    <h3>{{ total_employees }}</h3>
+                    <p class="text-success small mb-0">{{ active_employees }} active</p>
+                </div>
+                <i class="bi bi-people text-primary icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-0">Departments</p>
+                    <h3>{{ total_departments }}</h3>
+                </div>
+                <i class="bi bi-building text-info icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-0">Total Transactions</p>
+                    <h3>{{ total_transactions }}</h3>
+                    <p class="text-warning small mb-0">{{ pending_txns }} pending</p>
+                </div>
+                <i class="bi bi-receipt text-warning icon"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <p class="text-muted mb-0">Total Paid</p>
+                    <h3>&#8377;{{ total_paid_amount|floatformat:2 }}</h3>
+                    <p class="text-success small mb-0">{{ paid_txns }} completed</p>
+                </div>
+                <i class="bi bi-cash-coin text-success icon"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card stat-card p-3">
+            <h5>Monthly Payout Trend</h5>
+            <canvas id="monthlyChart" height="100"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card stat-card p-3">
+            <h5>Transactions by Status</h5>
+            <canvas id="statusChart" height="180"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card stat-card p-3">
+            <h5>Amount by Transaction Type</h5>
+            <canvas id="typeChart" height="140"></canvas>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card stat-card p-3">
+            <h5>Amount by Department</h5>
+            <table class="table table-sm mb-0">
+                <thead><tr><th>Department</th><th class="text-end">Count</th><th class="text-end">Total</th></tr></thead>
+                <tbody>
+                {% for d in by_dept %}
+                    <tr>
+                        <td>{{ d.employee__department__name|default:"Unassigned" }}</td>
+                        <td class="text-end">{{ d.count }}</td>
+                        <td class="text-end">&#8377;{{ d.total|floatformat:2 }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Recent transactions -->
+<div class="card stat-card p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0">Recent Transactions</h5>
+        <a href="{% url 'transaction_list' %}" class="btn btn-sm btn-outline-primary">View All</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Txn ID</th><th>Employee</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for t in recent_txns %}
+                <tr>
+                    <td><a href="{% url 'transaction_detail' t.pk %}" class="text-decoration-none">{{ t.transaction_id }}</a></td>
+                    <td>{{ t.employee.full_name }}</td>
+                    <td>{{ t.get_transaction_type_display }}</td>
+                    <td>&#8377;{{ t.amount|floatformat:2 }}</td>
+                    <td>
+                        {% if t.status == 'PAID' %}<span class="badge bg-success">Paid</span>
+                        {% elif t.status == 'PENDING' %}<span class="badge bg-warning">Pending</span>
+                        {% elif t.status == 'APPROVED' %}<span class="badge bg-info">Approved</span>
+                        {% elif t.status == 'PROCESSING' %}<span class="badge bg-primary">Processing</span>
+                        {% elif t.status == 'REJECTED' %}<span class="badge bg-danger">Rejected</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ t.transaction_date|date:"M d, Y" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-muted">No transactions yet</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+fetch("{% url 'api_chart_data' %}")
+    .then(r => r.json())
+    .then(data => {
+        // Monthly chart
+        if (data.monthly.length > 0) {
+            new Chart(document.getElementById('monthlyChart'), {
+                type: 'line',
+                data: {
+                    labels: data.monthly.map(d => d.month),
+                    datasets: [{
+                        label: 'Paid Amount',
+                        data: data.monthly.map(d => d.total),
+                        borderColor: '#2563eb',
+                        backgroundColor: 'rgba(37,99,235,.1)',
+                        fill: true,
+                        tension: .3,
+                    }]
+                },
+                options: { responsive: true, plugins: { legend: { display: false } } }
+            });
+        }
+
+        // Status chart
+        const statusColors = {PENDING:'#f59e0b', APPROVED:'#06b6d4', PROCESSING:'#2563eb', PAID:'#22c55e', REJECTED:'#ef4444'};
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: data.by_status.map(d => d.status),
+                datasets: [{
+                    data: data.by_status.map(d => d.count),
+                    backgroundColor: data.by_status.map(d => statusColors[d.status] || '#94a3b8'),
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+        });
+
+        // Type chart
+        const typeColors = ['#2563eb','#22c55e','#f59e0b','#06b6d4','#8b5cf6'];
+        new Chart(document.getElementById('typeChart'), {
+            type: 'bar',
+            data: {
+                labels: data.by_type.map(d => d.transaction_type),
+                datasets: [{
+                    label: 'Amount',
+                    data: data.by_type.map(d => d.total),
+                    backgroundColor: typeColors,
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        });
+    });
+</script>
+{% endblock %}
